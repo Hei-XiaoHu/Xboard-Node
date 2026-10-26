@@ -298,3 +298,7 @@ replace github.com/sagernet/sing-box => github.com/Hei-XiaoHu/sing-box v1.14.5-0
 replace github.com/xtls/xray-core => github.com/Hei-XiaoHu/Xray-core v0.0.0-20261026153540-b31d0714f16e
 
 replace github.com/sagernet/sing-quic => github.com/Hei-XiaoHu/sing-quic v0.0.0-20261026165341-fcd51522a50f
+
+// Accepts REALITY Client Hellos without X25519MLKEM768 (stock mihomo/sing-box).
+// Drop once mainstream clients send X25519MLKEM768 by default.
+replace github.com/xtls/reality => github.com/Hei-XiaoHu/REALITY v0.0.0-20261026201801-58d8ef55a806

@@ -1,6 +1,6 @@
 # 维护说明（Hei-XiaoHu fork）
 
-四个仓库都只保留 `main` 分支，上游更新一律用 **merge** 合入 `main`（不 rebase、不强推），
+五个仓库都只保留 `main` 分支，上游更新一律用 **merge** 合入 `main`（不 rebase、不强推），
 这样 `go.mod` 里引用过的旧提交永远可下载。
 
 | 仓库 | 上游 (`upstream`) | 我们在上游之上的补丁 |
@@ -9,10 +9,25 @@
 | [Hei-XiaoHu/Xray-core](https://github.com/Hei-XiaoHu/Xray-core) | XTLS/Xray-core 发布 tag | 按用户限速 (`features/bandwidth`, `app/dispatcher/ratelimit.go`) |
 | [Hei-XiaoHu/sing-box](https://github.com/Hei-XiaoHu/sing-box) | SagerNet/sing-box 发布 tag | UpdateUsers/UpdateRules、mieru、DynamicInboundManager、并发安全的换用户、`block_destinations`（防 SSRF） |
 | [Hei-XiaoHu/sing-quic](https://github.com/Hei-XiaoHu/sing-quic) | SagerNet/sing-quic `main` | hysteria/hysteria2/tuic 用户表原子替换 |
+| [Hei-XiaoHu/REALITY](https://github.com/Hei-XiaoHu/REALITY) | XTLS/REALITY `main` | 去掉“必须带 X25519MLKEM768”的强制检查（见下文） |
 
 Xray-core / sing-box 还有一个只读远程 `cedar`，用来查看原作者是否更新了补丁。
 
-本地路径：`~/桌面/proxy/{Xboard-Node,Xray-core,sing-box,sing-quic}`。
+本地路径：`~/桌面/proxy/{Xboard-Node,Xray-core,sing-box,sing-quic,REALITY}`。
+
+### REALITY 补丁
+
+上游 REALITY `8cdf7bf`（Xray ≥ v26.9.8）会静默拒绝不带 X25519MLKEM768 的 Client Hello：
+服务端把连接当普通访客转给 target 站点，客户端表现为超时（mihomo 日志 `REALITY Authentication: false`）。
+默认配置的 mihomo / sing-box 都不发 X25519MLKEM768，所以全部连不上。
+我们的补丁恢复旧行为（优先普通 X25519，否则用 X25519MLKEM768 里的 X25519），新旧客户端都能连。
+
+升级 Xray 时，看 Xray 的 go.mod 用哪个 REALITY 版本，把它 merge 进 fork 的 `main`，
+再更新 Xboard-Node 的 replace。等 mihomo/sing-box 默认发送 X25519MLKEM768 后，
+删掉 Xboard-Node go.mod 里的 REALITY replace 即可回到上游。
+
+验证方法：本机起一个 Xray REALITY 服务端，分别用 mihomo 默认配置、mihomo 加
+`reality-opts.support-x25519mlkem768: true`、Xray 客户端去连，三者都必须能通。
 
 注意：`replace` 只在主模块生效。sing-box 的 go.mod 里替换了 sing-quic，
 但 Xboard-Node 的 go.mod 里**也必须**有同样的 sing-quic replace，否则会悄悄用回上游版本。
@@ -67,6 +82,7 @@ git merge upstream/dev      # 合入原作者的更新；go.mod 的 replace 冲�
 go mod edit -replace=github.com/xtls/xray-core=github.com/Hei-XiaoHu/Xray-core@<commit>
 go mod edit -replace=github.com/sagernet/sing-box=github.com/Hei-XiaoHu/sing-box@<commit>
 go mod edit -replace=github.com/sagernet/sing-quic=github.com/Hei-XiaoHu/sing-quic@<commit>
+go mod edit -replace=github.com/xtls/reality=github.com/Hei-XiaoHu/REALITY@<commit>
 go mod tidy
 
 make test
