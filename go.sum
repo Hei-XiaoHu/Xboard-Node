@@ -54,8 +54,8 @@ github.com/Hei-XiaoHu/REALITY v0.0.0-20261026201801-58d8ef55a806 h1:T7fal0tF9HL+
 github.com/Hei-XiaoHu/REALITY v0.0.0-20261026201801-58d8ef55a806/go.mod h1:ptlSkJ8k/7IDauNH0SA96JPOo+nYGLTv2Y3UMpwvAsY=
 github.com/Hei-XiaoHu/Xray-core v0.0.0-20261026153540-b31d0714f16e h1:+9M8DKN0j5nZ1teL4YVjZidKghF8OtFIfKHPidj/azY=
 github.com/Hei-XiaoHu/Xray-core v0.0.0-20261026153540-b31d0714f16e/go.mod h1:tLfpynOfwaMAC1G61m0HH+sAJDl11hLMqoxChDms0Rw=
-github.com/Hei-XiaoHu/sing-box v0.0.0-20261026172408-d611321041f1 h1:2Xg30Q+pfn8mL3BqUBxDuayYFZ8jF2KLtzoW3nYBeas=
-github.com/Hei-XiaoHu/sing-box v0.0.0-20261026172408-d611321041f1/go.mod h1:5Vfep51RfndsENc9IZeK6WCkTdvNPqHl2sep8Z/ZyJk=
+github.com/Hei-XiaoHu/sing-box v0.0.0-20261027144437-8cb936a71192 h1:4bBzwjGCwDo6N56BZrcgMkgeT1FF0zFVkBa+qVEB06s=
+github.com/Hei-XiaoHu/sing-box v0.0.0-20261027144437-8cb936a71192/go.mod h1:5Vfep51RfndsENc9IZeK6WCkTdvNPqHl2sep8Z/ZyJk=
 github.com/Hei-XiaoHu/sing-quic v0.0.0-20261026165341-fcd51522a50f h1:1oWTA+t4LqmENJYbUWog2eejySgTrcwhhHGTyAQ4qSo=
 github.com/Hei-XiaoHu/sing-quic v0.0.0-20261026165341-fcd51522a50f/go.mod h1:rJFeVxbEej2iuyeCJ3drKW+p5rOgtLIW3XhZ6ty7Fig=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=

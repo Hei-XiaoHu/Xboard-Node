@@ -12,6 +12,14 @@
 | [Hei-XiaoHu/REALITY](https://github.com/Hei-XiaoHu/REALITY) | XTLS/REALITY `main` | 去掉“必须带 X25519MLKEM768”的强制检查（见下文） |
 
 Xray-core / sing-box 还有一个只读远程 `cedar`，用来查看原作者是否更新了补丁。
+**活跃的主上游是 XTLS / SagerNet**（以及节点本体的原作者 cedar2025/Xboard-Node 和面板 cedar2025/Xboard），
+cedar2025 的内核 fork 很少更新，只作为 Xboard 专用补丁的参考。
+
+GitHub 上 Xboard-Node / Xray-core / sing-box 的 fork 父仓库是 cedar2025 的仓库，页面上的
+“N commits behind” 是和 cedar 比的。cedar 的提交审阅/移植完后，用
+`git merge -s ours <cedar 分支>` 记录为已合并（不改任何文件），提示就会消失。
+
+检查所有上游的更新：`.pi/skills/upstream-sync/scripts/status.sh`（或在 pi 里 `/skill:upstream-sync`）。
 
 **tag / release 规则：** fork 里不保留任何上游的 tag 和 release。Xray-core / sing-box / sing-quic / REALITY
 一个 tag 都没有，Xboard-Node 只有自己发的 `v*-hx.N` 和滚动的 `dev`。
