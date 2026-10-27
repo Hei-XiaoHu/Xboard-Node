@@ -13,6 +13,13 @@
 
 Xray-core / sing-box 还有一个只读远程 `cedar`，用来查看原作者是否更新了补丁。
 
+**tag / release 规则：** fork 里不保留任何上游的 tag 和 release。Xray-core / sing-box / sing-quic / REALITY
+一个 tag 都没有，Xboard-Node 只有自己发的 `v*-hx.N` 和滚动的 `dev`。
+因此 go.mod 里对这几个 fork 的伪版本号一律是 `v0.0.0-<时间>-<hash>`；
+**不要** `git push --tags`、也不要把上游 tag 推到 origin（本地 `git fetch upstream --tags` 没问题）。
+若伪版本号写成 `vX.Y.(Z+1)-0.…` 形式，Go 会要求 fork 里存在 `vX.Y.Z` tag，`GOPROXY=direct` 时直接报
+`invalid pseudo-version: preceding tag not found`。
+
 本地路径：`~/桌面/proxy/{Xboard-Node,Xray-core,sing-box,sing-quic,REALITY}`。
 
 ### REALITY 补丁
@@ -48,8 +55,7 @@ git push origin main
 ```bash
 cd ~/桌面/proxy/sing-box
 git fetch upstream --tags
-git merge vX.Y.Z
-git push origin vX.Y.Z      # 推上游 tag，让 Go 伪版本号显示为 vX.Y.(Z+1)-0.xxx
+git merge vX.Y.Z            # 只合并，不要把上游 tag 推到 origin
 TAGS="with_quic with_utls with_wireguard with_acme with_clash_api"
 go build -tags "$TAGS" ./cmd/sing-box ./protocol/... ./route/... ./adapter/...
 go test -tags "$TAGS" ./adapter/... ./route/... ./protocol/...
@@ -83,7 +89,7 @@ go mod edit -replace=github.com/xtls/xray-core=github.com/Hei-XiaoHu/Xray-core@<
 go mod edit -replace=github.com/sagernet/sing-box=github.com/Hei-XiaoHu/sing-box@<commit>
 go mod edit -replace=github.com/sagernet/sing-quic=github.com/Hei-XiaoHu/sing-quic@<commit>
 go mod edit -replace=github.com/xtls/reality=github.com/Hei-XiaoHu/REALITY@<commit>
-go mod tidy
+go mod tidy                 # 结果应为 v0.0.0-<时间>-<hash>
 
 make test
 make test-runtime
