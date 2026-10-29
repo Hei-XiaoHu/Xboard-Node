@@ -30,6 +30,15 @@ GitHub 上 Xboard-Node / Xray-core / sing-box 的 fork 父仓库是 cedar2025 �
 
 本地路径：`~/桌面/proxy/{Xboard-Node,Xray-core,sing-box,sing-quic,REALITY}`。
 
+### 工作约定（人和 AI 都遵守）
+
+- 只在 `main` 上工作；不 rebase、不 `push -f`、不 `git push --tags`。
+- `git push` 走 SSH（`git@github-heixiaohu:`），无需额外配置。
+- 本机 `gh` 的活跃账号不是 Hei-XiaoHu，调 `gh` 一律加前缀：
+  `GH_TOKEN=$(gh auth token --user Hei-XiaoHu) gh ...`
+- 本机 Go 比 go.mod 要求的旧，Go / make 命令前加 `GOTOOLCHAIN=auto`。
+- 推送后看 CI：`GH_TOKEN=$(gh auth token --user Hei-XiaoHu) gh run watch -R Hei-XiaoHu/Xboard-Node`。
+
 ### REALITY 补丁
 
 上游 REALITY `8cdf7bf`（Xray ≥ v26.9.8）会静默拒绝不带 X25519MLKEM768 的 Client Hello：
@@ -116,13 +125,15 @@ git push origin main
 服务器上的 `install.sh` 和 `xbctl upgrade` 都从本仓库 Release 里标为 **Latest** 的版本下载。
 
 - 推送到 `main`：CI 测试、编译，并更新滚动预发布 `dev`（不会被安装/升级选中，可用 `--version dev` 指定）。
-- 发正式版：打 `v*` tag，CI 发布并标为 Latest。版本号沿用上游版本加后缀，避免和原作者撞号：
+- 发正式版：打 `v*` tag，CI 发布并标为 Latest。版本号 = 上游 Xboard-Node 版本 + `-hx.N`，避免和原作者撞号：
+  上游版本没变就在现有最大 N 上加 1，上游版本变了就从 `-hx.1` 开始
+  （现有版本：`GH_TOKEN=$(gh auth token --user Hei-XiaoHu) gh release list -R Hei-XiaoHu/Xboard-Node`）。
 
 ```bash
 git tag -a v1.13-hx.2 -m "说明" && git push origin v1.13-hx.2
 ```
 
-服务器升级：`xbctl upgrade`。CI 里的 Docker 任务只在 cedar2025 仓库运行，fork 里自动跳过。
+发版后确认 CI 成功且该版本被标成 Latest。服务器升级：`xbctl upgrade`。CI 里的 Docker 任务只在 cedar2025 仓库运行，fork 里自动跳过。
 
 ## 注意事项
 
