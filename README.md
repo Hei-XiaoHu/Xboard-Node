@@ -59,6 +59,26 @@ xbctl service restart
 
 Legacy single-panel config is fully compatible. Appending bindings auto-migrates to `instances` format. See `config.yml.example`.
 
+Fork-only options (all off by default, see [CHANGELOG.md](CHANGELOG.md)):
+
+| Option | Where | Default | Effect |
+|---|---|---|---|
+| `kernel.xray_reality_dest_override` | top-level / instance / `nodes[].kernel` | `""` | Runtime-only Reality `dest` (e.g. `127.0.0.1:8443`); panel `server_name` stays in `serverNames`, subscriptions unchanged. xray only. |
+| `kernel.xray_reality_xver` | same | `0` | `1`/`2`: PROXY protocol header on Reality fallback to `dest`. xray only. |
+| `kernel.xray_accept_proxy_protocol` | same | `false` | Inbound requires a PROXY protocol header (real client IP behind a relay); ORed with the panel's `accept_proxy_protocol`. Direct connections fail when on. xray only. |
+| `health_listen` | top-level / instance (like `health_port`) | `""` | Health endpoint address, e.g. `127.0.0.1:65530`; overrides `health_port`. |
+
+```yaml
+instances:
+  - panel: { url: https://panel.example.com, token: TOKEN, node_id: 32 }
+    kernel:
+      type: xray
+      xray_reality_dest_override: "127.0.0.1:8443"
+      xray_reality_xver: 1
+      # xray_accept_proxy_protocol: true   # only for landing nodes behind a relay
+    health_listen: "127.0.0.1:65530"
+```
+
 ## Extensions
 
 - Custom routes: [docs-custom-routes.md](docs-custom-routes.md)

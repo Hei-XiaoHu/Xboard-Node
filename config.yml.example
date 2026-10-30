@@ -24,3 +24,18 @@
 #       token: "machine-token-2"
 #     log:
 #       level: "debug"   # override for this instance only
+
+# ── Health check endpoint ──
+# health_port: 65530                   # listens on :65530 (all interfaces)
+# health_listen: "127.0.0.1:65530"     # bind address; overrides health_port
+
+# ── xray-only kernel options (top-level, per instance, or nodes[].kernel) ──
+# kernel:
+#   type: xray
+#   # Runtime-only Reality dest; panel server_name stays in serverNames.
+#   xray_reality_dest_override: "127.0.0.1:8443"
+#   # PROXY protocol header (1 or 2) on Reality fallback to dest.
+#   xray_reality_xver: 1
+#   # Require a PROXY protocol header on the inbound (node behind a relay
+#   # with send_proxy). Direct connections FAIL when enabled.
+#   xray_accept_proxy_protocol: true
