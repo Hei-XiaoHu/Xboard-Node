@@ -54,22 +54,23 @@ type fileRootConfig struct {
 	WS        *config.WSConfig   `yaml:"ws,omitempty"`
 	Runtime   *fileRuntimeConfig `yaml:"runtime,omitempty"`
 	Cert      *config.CertConfig `yaml:"cert,omitempty"`
-	Instances []fileInstance      `yaml:"instances,omitempty"`
+	Instances []fileInstance     `yaml:"instances,omitempty"`
 }
 
 type fileInstance struct {
-	ID         string             `yaml:"id,omitempty"`
-	Panel      filePanelConfig    `yaml:"panel"`
-	Node       *fileNodeConfig    `yaml:"node,omitempty"`
-	Kernel     fileKernelConfig   `yaml:"kernel"`
-	Log        fileLogConfig      `yaml:"log"`
-	Runtime    *fileRuntimeConfig `yaml:"runtime,omitempty"`
-	HealthPort int                `yaml:"health_port,omitempty"`
-	Machine    *fileMachineConfig `yaml:"machine,omitempty"`
-	Standalone map[string]any     `yaml:"standalone,omitempty"`
-	Cert       *config.CertConfig `yaml:"cert,omitempty"`
-	WS         *config.WSConfig   `yaml:"ws,omitempty"`
-	Nodes      []config.NodeEntry `yaml:"nodes,omitempty"`
+	ID           string             `yaml:"id,omitempty"`
+	Panel        filePanelConfig    `yaml:"panel"`
+	Node         *fileNodeConfig    `yaml:"node,omitempty"`
+	Kernel       fileKernelConfig   `yaml:"kernel"`
+	Log          fileLogConfig      `yaml:"log"`
+	Runtime      *fileRuntimeConfig `yaml:"runtime,omitempty"`
+	HealthPort   int                `yaml:"health_port,omitempty"`
+	HealthListen string             `yaml:"health_listen,omitempty"`
+	Machine      *fileMachineConfig `yaml:"machine,omitempty"`
+	Standalone   map[string]any     `yaml:"standalone,omitempty"`
+	Cert         *config.CertConfig `yaml:"cert,omitempty"`
+	WS           *config.WSConfig   `yaml:"ws,omitempty"`
+	Nodes        []config.NodeEntry `yaml:"nodes,omitempty"`
 }
 
 type filePanelConfig struct {
@@ -116,12 +117,13 @@ type fileRuntimeConfig struct {
 }
 
 type instanceSummary struct {
-	ID         string `json:"id"`
-	PanelURL   string `json:"panel_url"`
-	Mode       string `json:"mode"`
-	NodeID     *int   `json:"node_id"`
-	MachineID  *int   `json:"machine_id"`
-	HealthPort int    `json:"health_port"`
+	ID           string `json:"id"`
+	PanelURL     string `json:"panel_url"`
+	Mode         string `json:"mode"`
+	NodeID       *int   `json:"node_id"`
+	MachineID    *int   `json:"machine_id"`
+	HealthPort   int    `json:"health_port"`
+	HealthListen string `json:"health_listen,omitempty"`
 }
 
 type installMeta struct {
@@ -208,6 +210,7 @@ func printUsage() {
   xbctl instance get <id> [--output text|json]
   xbctl config init --mode node|machine --panel-url URL --token TOKEN [flags]
   xbctl config health-port [--config PATH]
+  xbctl config health-url [--config PATH]
   xbctl service status|start|stop|restart|enable|disable|logs
   xbctl health
   xbctl bind add-node --panel-url URL --token TOKEN --node-id ID [--node-type TYPE] [--kernel singbox|xray]
@@ -906,7 +909,8 @@ func writeRootConfig(path string, root *config.RootConfig) error {
 				Level:  inst.Log.Level,
 				Output: inst.Log.Output,
 			},
-			HealthPort: inst.HealthPort,
+			HealthPort:   inst.HealthPort,
+			HealthListen: inst.HealthListen,
 		}
 		if !inst.IsMachineMode() && (inst.Node.PushInterval != 0 || inst.Node.PullInterval != 0 || inst.Node.TrackInterval != 0 || inst.Node.DeviceReportInterval != 0) {
 			fi.Node = &fileNodeConfig{
@@ -1099,37 +1103,74 @@ func healthStatus() string {
 	return instanceAwareHealth()
 }
 
-func instanceAwareHealth() string {
-	port := 0
-	if meta, err := loadInstallMeta(defaultMetaPath); err == nil {
+// resolveHealthAddr picks the health endpoint listen address for `xbctl
+// health`. health_listen in config.yml is authoritative because
+// install-meta.json may predate it; otherwise install-meta health_port wins,
+// then config.yml (top-level first, then instances).
+func resolveHealthAddr(meta *installMeta, root *config.RootConfig) string {
+	if root != nil {
+		if s := strings.TrimSpace(root.HealthListen); s != "" {
+			return s
+		}
+		for _, inst := range normalizeRootInstances(root) {
+			if s := strings.TrimSpace(inst.HealthListen); s != "" {
+				return s
+			}
+		}
+	}
+	if meta != nil {
 		for _, inst := range meta.Instances {
+			if s := strings.TrimSpace(inst.HealthListen); s != "" {
+				return s
+			}
 			if inst.HealthPort > 0 {
-				port = inst.HealthPort
-				break
+				return fmt.Sprintf(":%d", inst.HealthPort)
 			}
 		}
 	}
-	if port == 0 {
-		if root, err := loadWritableRootConfig(defaultConfigPath); err == nil {
-			// Check top-level health_port first (inherited by all instances)
-			if root.HealthPort > 0 {
-				port = root.HealthPort
-			}
-			if port == 0 {
-				instances, _ := root.NormalizeInstances()
-				for _, inst := range instances {
-					if inst.HealthPort > 0 {
-						port = inst.HealthPort
-						break
-					}
-				}
+	if root != nil {
+		// Check top-level health_port first (inherited by all instances)
+		if a := root.HealthAddr(); a != "" {
+			return a
+		}
+		instances, _ := root.NormalizeInstances()
+		for _, inst := range instances {
+			if a := inst.HealthAddr(); a != "" {
+				return a
 			}
 		}
 	}
-	if port == 0 {
+	return ""
+}
+
+// healthAddrFromFile picks the health address the way `xbctl config
+// health-port` always has: instances first, then the legacy top level.
+func healthAddrFromFile(root *config.RootConfig) string {
+	for _, inst := range root.Instances {
+		if a := inst.HealthAddr(); a != "" {
+			return a
+		}
+	}
+	return root.Config.HealthAddr()
+}
+
+func instanceAwareHealth() string {
+	var meta *installMeta
+	if m, err := loadInstallMeta(defaultMetaPath); err == nil {
+		meta = m
+	}
+	var root *config.RootConfig
+	if r, err := loadWritableRootConfig(defaultConfigPath); err == nil {
+		root = r
+	}
+	url := config.HealthProbeURL(resolveHealthAddr(meta, root))
+	if url == "" {
 		return "disabled"
 	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
+	return probeHealth(url)
+}
+
+func probeHealth(url string) string {
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -1205,13 +1246,15 @@ func machineIDPtr(cfg *config.Config) *int {
 
 func runConfig(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: xbctl config <init|health-port>")
+		return errors.New("usage: xbctl config <init|health-port|health-url>")
 	}
 	switch args[0] {
 	case "init":
 		return runConfigInit(args[1:])
 	case "health-port":
 		return runConfigHealthPort(args[1:])
+	case "health-url":
+		return runConfigHealthURL(args[1:])
 	default:
 		return fmt.Errorf("unknown config command: %s", args[0])
 	}
@@ -1512,12 +1555,13 @@ func writeInstallMetaVersioned(path string, root *config.RootConfig, ver, latest
 			latestID = id
 		}
 		item := instanceSummary{
-			ID:         id,
-			PanelURL:   inst.Panel.URL,
-			Mode:       instanceMode(inst),
-			NodeID:     intPtr(inst.Panel.NodeID),
-			MachineID:  machineIDPtr(&inst),
-			HealthPort: inst.HealthPort,
+			ID:           id,
+			PanelURL:     inst.Panel.URL,
+			Mode:         instanceMode(inst),
+			NodeID:       intPtr(inst.Panel.NodeID),
+			MachineID:    machineIDPtr(&inst),
+			HealthPort:   inst.HealthPort,
+			HealthListen: inst.HealthListen,
 		}
 		if item.Mode == "machine" {
 			item.NodeID = nil
@@ -1543,7 +1587,35 @@ func writeInstallMetaVersioned(path string, root *config.RootConfig, ver, latest
 // runConfigHealthPort reads health_port from an existing config file and
 // prints it to stdout. Exits silently if the file does not exist or has
 // no health_port.
+// When health_listen is set, its port is printed.
 func runConfigHealthPort(args []string) error {
+	root := readHealthRootConfig(args)
+	if root == nil {
+		return nil // file not found → no health port
+	}
+	if addr := healthAddrFromFile(root); addr != "" {
+		c := config.Config{HealthListen: addr}
+		if p := c.HealthEffectivePort(); p > 0 {
+			fmt.Println(p)
+		}
+	}
+	return nil
+}
+
+// runConfigHealthURL prints the local URL of the health endpoint
+// (honouring health_listen), or nothing when health checks are disabled.
+func runConfigHealthURL(args []string) error {
+	root := readHealthRootConfig(args)
+	if root == nil {
+		return nil
+	}
+	if url := config.HealthProbeURL(healthAddrFromFile(root)); url != "" {
+		fmt.Println(url)
+	}
+	return nil
+}
+
+func readHealthRootConfig(args []string) *config.RootConfig {
 	cfgPath := defaultConfigPath
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--config" && i+1 < len(args) {
@@ -1553,23 +1625,11 @@ func runConfigHealthPort(args []string) error {
 	}
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
-		return nil // file not found → no health port
+		return nil
 	}
 	root := &config.RootConfig{}
 	if err := yaml.Unmarshal(data, root); err != nil {
 		return nil
 	}
-	// Check instances first, then legacy top-level.
-	if len(root.Instances) > 0 {
-		for _, inst := range root.Instances {
-			if inst.HealthPort > 0 {
-				fmt.Println(inst.HealthPort)
-				return nil
-			}
-		}
-	}
-	if root.Config.HealthPort > 0 {
-		fmt.Println(root.Config.HealthPort)
-	}
-	return nil
+	return root
 }

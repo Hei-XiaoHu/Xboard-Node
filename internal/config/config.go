@@ -33,6 +33,10 @@ type Config struct {
 	// HealthPort enables a lightweight HTTP health-check endpoint on the
 	// given port (e.g. 65530). 0 = disabled (default).
 	HealthPort int `yaml:"health_port"`
+	// HealthListen sets the full listen address of the health-check endpoint
+	// (host:port, e.g. "127.0.0.1:65530" or "[::1]:65530"). When set it takes
+	// precedence over HealthPort; empty = listen on ":<health_port>".
+	HealthListen string `yaml:"health_listen,omitempty"`
 	// Nodes enables multi-node mode. When set, Panel.NodeID is ignored and
 	// one service instance is started per entry. All entries share the same
 	// panel URL/token, kernel type, log settings and runtime tuning.
@@ -778,6 +782,11 @@ func (c *Config) validate() error {
 			return fmt.Errorf("nodes[%d]: %w", i, err)
 		}
 	}
+	if c.HealthListen != "" {
+		if err := validateHealthListen(c.HealthListen); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -793,6 +802,58 @@ func validateKernelExtras(k KernelConfig) error {
 		}
 	}
 	return nil
+}
+
+func validateHealthListen(addr string) error {
+	_, port, err := net.SplitHostPort(strings.TrimSpace(addr))
+	if err != nil {
+		return fmt.Errorf("health_listen %q must be host:port: %w", addr, err)
+	}
+	if n, err := strconv.Atoi(port); err != nil || n <= 0 || n > 65535 {
+		return fmt.Errorf("health_listen %q: port must be 1-65535", addr)
+	}
+	return nil
+}
+
+// HealthAddr returns the listen address of the health-check endpoint, or ""
+// when it is disabled. health_listen wins over health_port.
+func (c *Config) HealthAddr() string {
+	if s := strings.TrimSpace(c.HealthListen); s != "" {
+		return s
+	}
+	if c.HealthPort > 0 {
+		return fmt.Sprintf(":%d", c.HealthPort)
+	}
+	return ""
+}
+
+// HealthEffectivePort returns the port of HealthAddr (0 when disabled).
+func (c *Config) HealthEffectivePort() int {
+	addr := c.HealthAddr()
+	if addr == "" {
+		return 0
+	}
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(port)
+	return n
+}
+
+// HealthProbeURL returns the URL a local client should use to reach the
+// health endpoint listening on addr. Wildcard/empty hosts map to 127.0.0.1.
+// Returns "" if addr is empty or malformed.
+func HealthProbeURL(addr string) string {
+	host, port, err := net.SplitHostPort(strings.TrimSpace(addr))
+	if err != nil || port == "" {
+		return ""
+	}
+	switch host {
+	case "", "0.0.0.0", "::":
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/healthz"
 }
 
 // ExpandNodes returns one *Config per node to run.
@@ -927,7 +988,7 @@ func InitLogger(cfg LogConfig) {
 // ValidateStartupLayout checks that multiple instances do not conflict on
 // health ports, kernel config directories, or node bindings.
 func ValidateStartupLayout(instances []*Config) error {
-	healthPorts := make(map[int]string)
+	healthAddrs := make(map[string]string)
 	configDirs := make(map[string]string)
 	nodeBindings := make(map[string]string)
 	for _, instance := range instances {
@@ -935,11 +996,14 @@ func ValidateStartupLayout(instances []*Config) error {
 			continue
 		}
 		owner := instance.InstanceID
-		if instance.HealthPort > 0 {
-			if other, ok := healthPorts[instance.HealthPort]; ok {
-				return fmt.Errorf("health_port %d is used by both %s and %s", instance.HealthPort, other, owner)
+		if addr := instance.HealthAddr(); addr != "" {
+			if other, ok := healthAddrs[addr]; ok {
+				if instance.HealthListen == "" {
+					return fmt.Errorf("health_port %d is used by both %s and %s", instance.HealthPort, other, owner)
+				}
+				return fmt.Errorf("health_listen %s is used by both %s and %s", addr, other, owner)
 			}
-			healthPorts[instance.HealthPort] = owner
+			healthAddrs[addr] = owner
 		}
 		if dir := strings.TrimSpace(instance.Kernel.ConfigDir); dir != "" {
 			if other, ok := configDirs[dir]; ok && other != owner {

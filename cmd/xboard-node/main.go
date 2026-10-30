@@ -57,14 +57,15 @@ func main() {
 // runWithReload restarts all node services when the config file changes.
 func runWithReload(initialRoot *config.RootConfig, configPath string) {
 	var healthSrv *http.Server
-	var healthPort int
-	startHealth := func(port int) {
-		if port <= 0 {
+	var healthAddr string
+	// addr comes from Config.HealthAddr(): health_listen, else ":<health_port>".
+	startHealth := func(addr string) {
+		if addr == "" {
 			return
 		}
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		ln, err := net.Listen("tcp", addr)
 		if err != nil {
-			nlog.Core().Error("failed to start health check listener", "port", port, "error", err)
+			nlog.Core().Error("failed to start health check listener", "addr", addr, "error", err)
 			os.Exit(1)
 		}
 		mux := http.NewServeMux()
@@ -74,9 +75,9 @@ func runWithReload(initialRoot *config.RootConfig, configPath string) {
 			w.Write([]byte(`{"status":"ok"}`))
 		})
 		healthSrv = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
-		healthPort = port
+		healthAddr = addr
 		go func() {
-			nlog.Core().Debug(fmt.Sprintf("health check listening on :%d", port))
+			nlog.Core().Debug(fmt.Sprintf("health check listening on %s", addr))
 			if err := healthSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
 				nlog.Core().Warn("health check server stopped", "error", err)
 			}
@@ -88,7 +89,7 @@ func runWithReload(initialRoot *config.RootConfig, configPath string) {
 		nlog.Core().Error("failed to normalize initial config", "error", err)
 		os.Exit(1)
 	}
-	startHealth(initialInstances[0].HealthPort)
+	startHealth(initialInstances[0].HealthAddr())
 	defer func() {
 		if healthSrv != nil {
 			healthSrv.Close()
@@ -141,12 +142,13 @@ func runWithReload(initialRoot *config.RootConfig, configPath string) {
 			os.Exit(1)
 		}
 
-		if instances[0].HealthPort != healthPort {
+		if instances[0].HealthAddr() != healthAddr {
 			if healthSrv != nil {
 				healthSrv.Close()
 				healthSrv = nil
 			}
-			startHealth(instances[0].HealthPort)
+			healthAddr = ""
+			startHealth(instances[0].HealthAddr())
 		}
 
 		errCh := make(chan error, len(instances))

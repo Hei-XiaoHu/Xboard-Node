@@ -661,6 +661,20 @@ install_staged_files() {
     systemctl enable "$SERVICE_NAME" > /dev/null 2>&1
 }
 
+# health_url prints the local health URL. It honours health_listen in the
+# installed config (via xbctl) and falls back to 127.0.0.1:${HEALTH_PORT}
+# (older xbctl without `config health-url`, or no config yet).
+health_url() {
+    local url=""
+    if [ -x "$CLI_PATH" ] && [ -f "$CONFIG_FILE" ]; then
+        url=$("$CLI_PATH" config health-url --config "$CONFIG_FILE" 2>/dev/null | head -n1) || url=""
+    fi
+    case "$url" in
+        http://*) echo "$url" ;;
+        *) echo "http://127.0.0.1:${HEALTH_PORT}/healthz" ;;
+    esac
+}
+
 wait_for_health() {
     if ! systemctl is-active "$SERVICE_NAME" >/dev/null 2>&1; then
         return 1
@@ -668,13 +682,15 @@ wait_for_health() {
     if [ "$HEALTH_ENABLED" -eq 0 ]; then
         return 0
     fi
+    local url
+    url=$(health_url)
     local attempt=0
     local max_attempts=30
     while [ "$attempt" -lt "$max_attempts" ]; do
         if ! systemctl is-active "$SERVICE_NAME" >/dev/null 2>&1; then
             return 1
         fi
-        if curl -fsS "http://127.0.0.1:${HEALTH_PORT}/healthz" >/dev/null 2>&1; then
+        if curl -fsS "$url" >/dev/null 2>&1; then
             return 0
         fi
         sleep 1
@@ -721,7 +737,7 @@ perform_install() {
     log_info "Config: ${CONFIG_FILE}"
     log_info "Credentials: ${CREDENTIALS_FILE}"
     if [ "$HEALTH_ENABLED" -eq 1 ]; then
-        log_info "Health: http://127.0.0.1:${HEALTH_PORT}/healthz"
+        log_info "Health: $(health_url)"
     fi
     log_info "CLI: ${CLI_PATH}  (run '${CLI_PATH} list' if xbctl is not in PATH)"
 }
