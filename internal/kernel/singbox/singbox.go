@@ -107,6 +107,9 @@ func (s *SingBox) Start(nodeConfig *model.NodeSpec, users []model.UserSpec, tls 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	for _, w := range unsupportedOptionWarnings(s.cfg, nodeConfig) {
+		nlog.Core().Warn(w)
+	}
 	cfgMap := buildConfig(s.cfg, nodeConfig, users, tls)
 	data, err := json.Marshal(cfgMap)
 	if err != nil {
@@ -175,6 +178,19 @@ func (s *SingBox) Start(nodeConfig *model.NodeSpec, users []model.UserSpec, tls 
 	return nil
 }
 
+// unsupportedOptionWarnings lists configured options that only the xray
+// kernel implements; sing-box ignores them instead of failing.
+func unsupportedOptionWarnings(kcfg config.KernelConfig, nc *model.NodeSpec) []string {
+	var out []string
+	if kcfg.XrayRealityDestOverride != "" || kcfg.XrayRealityXver != 0 {
+		out = append(out, "sing-box: xray_reality_dest_override / xray_reality_xver are xray-only and ignored")
+	}
+	if kcfg.XrayAcceptProxyProtocol || nc.GetProxyProtocol() {
+		out = append(out, "sing-box: accept_proxy_protocol / xray_accept_proxy_protocol are not supported by sing-box and ignored")
+	}
+	return out
+}
+
 // recycleOldBox gracefully shuts down a previous sing-box instance in the
 // background. It closes listen sockets first, waits for connections to drain,
 // then hard-closes. This avoids blocking the new instance's startup.
@@ -212,6 +228,9 @@ func (s *SingBox) Reload(nodeConfig *model.NodeSpec, users []model.UserSpec, tls
 		return fmt.Errorf("not running")
 	}
 
+	for _, w := range unsupportedOptionWarnings(s.cfg, nodeConfig) {
+		nlog.Core().Warn(w)
+	}
 	cfgMap := buildConfig(s.cfg, nodeConfig, users, tls)
 	data, err := json.Marshal(cfgMap)
 	if err != nil {

@@ -77,6 +77,7 @@ func buildConfig(kcfg config.KernelConfig, nc *model.NodeSpec, users []model.Use
 	inbound := buildInbound(nc, users, tc)
 	if inbound != nil {
 		applyRealityRuntimeOverride(inbound, nc, kcfg)
+		applyAcceptProxyProtocol(inbound, nc, kcfg)
 		cfg["inbounds"] = []M{inbound}
 	} else {
 		nlog.Core().Warn("xray: unsupported protocol, no inbound configured — node will not accept connections",
@@ -146,6 +147,34 @@ func applyRealityRuntimeOverride(inbound M, nc *model.NodeSpec, kcfg config.Kern
 	if kcfg.XrayRealityXver != 0 {
 		reality["xver"] = kcfg.XrayRealityXver
 	}
+}
+
+// applyAcceptProxyProtocol enables sockopt.acceptProxyProtocol when the local
+// kernel config asks for it (ORed with the panel's accept_proxy_protocol,
+// which applyStreamSettings already handles). Existing sockopt fields are
+// kept. UDP-based inbounds (hysteria, mKCP) cannot carry a PROXY header and
+// are left untouched.
+func applyAcceptProxyProtocol(inbound M, nc *model.NodeSpec, kcfg config.KernelConfig) {
+	if !kcfg.XrayAcceptProxyProtocol {
+		return
+	}
+	stream, _ := inbound["streamSettings"].(M)
+	network, _ := stream["network"].(string)
+	if nc.Protocol == "hysteria" || network == "kcp" || network == "hysteria" {
+		nlog.Core().Warn("xray: xray_accept_proxy_protocol ignored for UDP-based inbound",
+			"protocol", nc.Protocol, "network", network)
+		return
+	}
+	if stream == nil {
+		stream = M{}
+		inbound["streamSettings"] = stream
+	}
+	sockopt, _ := stream["sockopt"].(M)
+	if sockopt == nil {
+		sockopt = M{}
+		stream["sockopt"] = sockopt
+	}
+	sockopt["acceptProxyProtocol"] = true
 }
 
 func realityPublicServerName(nc *model.NodeSpec, generatedDest any) string {

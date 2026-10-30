@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -73,6 +74,8 @@ type KernelOverride struct {
 	// Reality runtime overrides (xray only). See KernelConfig.
 	XrayRealityDestOverride string `yaml:"xray_reality_dest_override,omitempty"`
 	XrayRealityXver         int    `yaml:"xray_reality_xver,omitempty"`
+	// XrayAcceptProxyProtocol: only true overrides the global value.
+	XrayAcceptProxyProtocol bool `yaml:"xray_accept_proxy_protocol,omitempty"`
 }
 
 // RuntimeConfig tunes Go runtime memory behaviour.
@@ -155,6 +158,12 @@ type KernelConfig struct {
 	// when forwarding non-Reality (fallback) traffic to dest, so the local
 	// web server can log the visitor's real IP.
 	XrayRealityXver int `yaml:"xray_reality_xver"`
+	// XrayAcceptProxyProtocol makes the Xray inbound require a PROXY protocol
+	// header (sockopt.acceptProxyProtocol) so a relay in front of the node can
+	// pass the client's real IP. It is ORed with the panel's
+	// accept_proxy_protocol. Direct connections without the header fail, so
+	// only enable it on nodes reached exclusively through a relay.
+	XrayAcceptProxyProtocol bool `yaml:"xray_accept_proxy_protocol"`
 }
 
 type CertConfig struct {
@@ -526,6 +535,9 @@ func (c *Config) inheritFrom(parent *Config) {
 	if c.Kernel.XrayRealityXver == 0 {
 		c.Kernel.XrayRealityXver = parent.Kernel.XrayRealityXver
 	}
+	if !c.Kernel.XrayAcceptProxyProtocol {
+		c.Kernel.XrayAcceptProxyProtocol = parent.Kernel.XrayAcceptProxyProtocol
+	}
 	if len(c.Kernel.CustomOutbound) == 0 {
 		c.Kernel.CustomOutbound = parent.Kernel.CustomOutbound
 	}
@@ -752,6 +764,34 @@ func (c *Config) validate() error {
 	if c.Node.PullInterval < 0 {
 		return fmt.Errorf("node.pull_interval must not be negative")
 	}
+	if err := validateKernelExtras(c.Kernel); err != nil {
+		return err
+	}
+	for i, n := range c.Nodes {
+		if n.Kernel == nil {
+			continue
+		}
+		if err := validateKernelExtras(KernelConfig{
+			XrayRealityDestOverride: n.Kernel.XrayRealityDestOverride,
+			XrayRealityXver:         n.Kernel.XrayRealityXver,
+		}); err != nil {
+			return fmt.Errorf("nodes[%d]: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func validateKernelExtras(k KernelConfig) error {
+	switch k.XrayRealityXver {
+	case 0, 1, 2:
+	default:
+		return fmt.Errorf("kernel.xray_reality_xver must be 0, 1 or 2, got %d", k.XrayRealityXver)
+	}
+	if d := strings.TrimSpace(k.XrayRealityDestOverride); d != "" {
+		if _, _, err := net.SplitHostPort(d); err != nil {
+			return fmt.Errorf("kernel.xray_reality_dest_override %q must be host:port: %w", d, err)
+		}
+	}
 	return nil
 }
 
@@ -795,6 +835,9 @@ func (c *Config) ExpandNodes() []*Config {
 			}
 			if entry.Kernel.XrayRealityXver != 0 {
 				nodeCfg.Kernel.XrayRealityXver = entry.Kernel.XrayRealityXver
+			}
+			if entry.Kernel.XrayAcceptProxyProtocol {
+				nodeCfg.Kernel.XrayAcceptProxyProtocol = true
 			}
 		} else {
 			// Auto-derive a unique config_dir per node to avoid conflicts.

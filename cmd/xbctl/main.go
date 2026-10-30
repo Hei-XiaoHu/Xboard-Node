@@ -99,6 +99,10 @@ type fileKernelConfig struct {
 	CustomConfig string           `yaml:"custom_config,omitempty"`
 	CustomRoute  []map[string]any `yaml:"custom_route,omitempty"`
 	CustomOut    []map[string]any `yaml:"custom_outbound,omitempty"`
+
+	XrayRealityDestOverride string `yaml:"xray_reality_dest_override,omitempty"`
+	XrayRealityXver         int    `yaml:"xray_reality_xver,omitempty"`
+	XrayAcceptProxyProtocol bool   `yaml:"xray_accept_proxy_protocol,omitempty"`
 }
 
 type fileLogConfig struct {
@@ -849,8 +853,14 @@ func writeRootConfig(path string, root *config.RootConfig) error {
 	if p.Log.Level != "" || p.Log.Output != "" {
 		out.Log = &fileLogConfig{Level: p.Log.Level, Output: p.Log.Output}
 	}
-	if p.Kernel.Type != "" || p.Kernel.LogLevel != "" {
-		out.Kernel = &fileKernelConfig{Type: p.Kernel.Type, LogLevel: p.Kernel.LogLevel}
+	if p.Kernel.Type != "" || p.Kernel.LogLevel != "" || p.Kernel.XrayRealityDestOverride != "" || p.Kernel.XrayRealityXver != 0 || p.Kernel.XrayAcceptProxyProtocol {
+		out.Kernel = &fileKernelConfig{
+			Type:                    p.Kernel.Type,
+			LogLevel:                p.Kernel.LogLevel,
+			XrayRealityDestOverride: p.Kernel.XrayRealityDestOverride,
+			XrayRealityXver:         p.Kernel.XrayRealityXver,
+			XrayAcceptProxyProtocol: p.Kernel.XrayAcceptProxyProtocol,
+		}
 	}
 	if p.Node.PushInterval != 0 || p.Node.PullInterval != 0 || p.Node.TrackInterval != 0 || p.Node.DeviceReportInterval != 0 {
 		out.Node = &fileNodeConfig{
@@ -887,6 +897,10 @@ func writeRootConfig(path string, root *config.RootConfig) error {
 				CustomConfig: inst.Kernel.CustomConfig,
 				CustomRoute:  inst.Kernel.CustomRoute,
 				CustomOut:    inst.Kernel.CustomOutbound,
+
+				XrayRealityDestOverride: inst.Kernel.XrayRealityDestOverride,
+				XrayRealityXver:         inst.Kernel.XrayRealityXver,
+				XrayAcceptProxyProtocol: inst.Kernel.XrayAcceptProxyProtocol,
 			},
 			Log: fileLogConfig{
 				Level:  inst.Log.Level,
