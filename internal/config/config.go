@@ -69,6 +69,10 @@ type KernelOverride struct {
 	GeoDataDir   string `yaml:"geo_data_dir,omitempty"`
 	LogLevel     string `yaml:"log_level,omitempty"`
 	CustomConfig string `yaml:"custom_config,omitempty"`
+
+	// Reality runtime overrides (xray only). See KernelConfig.
+	XrayRealityDestOverride string `yaml:"xray_reality_dest_override,omitempty"`
+	XrayRealityXver         int    `yaml:"xray_reality_xver,omitempty"`
 }
 
 // RuntimeConfig tunes Go runtime memory behaviour.
@@ -142,6 +146,15 @@ type KernelConfig struct {
 	// customization of dns, outbounds, endpoints, route, experimental, etc.
 	// Compatible with V2bX OriginalPath format.
 	CustomConfig string `yaml:"custom_config"`
+
+	// XrayRealityDestOverride replaces the Reality "dest" only in the runtime
+	// Xray config (e.g. "127.0.0.1:8443"). The panel's public server_name/dest
+	// is kept for subscriptions and is still used as Reality serverNames.
+	XrayRealityDestOverride string `yaml:"xray_reality_dest_override"`
+	// XrayRealityXver makes Reality prepend a PROXY protocol header (1 or 2)
+	// when forwarding non-Reality (fallback) traffic to dest, so the local
+	// web server can log the visitor's real IP.
+	XrayRealityXver int `yaml:"xray_reality_xver"`
 }
 
 type CertConfig struct {
@@ -507,6 +520,12 @@ func (c *Config) inheritFrom(parent *Config) {
 	if c.Kernel.CustomConfig == "" {
 		c.Kernel.CustomConfig = parent.Kernel.CustomConfig
 	}
+	if c.Kernel.XrayRealityDestOverride == "" {
+		c.Kernel.XrayRealityDestOverride = parent.Kernel.XrayRealityDestOverride
+	}
+	if c.Kernel.XrayRealityXver == 0 {
+		c.Kernel.XrayRealityXver = parent.Kernel.XrayRealityXver
+	}
 	if len(c.Kernel.CustomOutbound) == 0 {
 		c.Kernel.CustomOutbound = parent.Kernel.CustomOutbound
 	}
@@ -770,6 +789,12 @@ func (c *Config) ExpandNodes() []*Config {
 			}
 			if entry.Kernel.CustomConfig != "" {
 				nodeCfg.Kernel.CustomConfig = entry.Kernel.CustomConfig
+			}
+			if entry.Kernel.XrayRealityDestOverride != "" {
+				nodeCfg.Kernel.XrayRealityDestOverride = entry.Kernel.XrayRealityDestOverride
+			}
+			if entry.Kernel.XrayRealityXver != 0 {
+				nodeCfg.Kernel.XrayRealityXver = entry.Kernel.XrayRealityXver
 			}
 		} else {
 			// Auto-derive a unique config_dir per node to avoid conflicts.

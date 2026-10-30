@@ -572,3 +572,50 @@ func TestExtractECHServerKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildConfig_RealityLocalOverride(t *testing.T) {
+	kcfg := config.KernelConfig{
+		Type:                    "xray",
+		LogLevel:                "warn",
+		XrayRealityDestOverride: "127.0.0.1:8443",
+		XrayRealityXver:         1,
+	}
+	nc := &panel.NodeConfig{
+		Protocol:   "vless",
+		ServerPort: 443,
+		TLS:        2,
+		Flow:       "xtls-rprx-vision",
+		TLSSettings: map[string]interface{}{
+			"private_key": "test-private-key",
+			"short_id":    "abcd",
+			"server_name": "decoy.example.com",
+		},
+	}
+	cfg := buildConfig(kcfg, testNodeSpec(nc), testUsers, kernel.TLSCert{})
+	reality := cfg["inbounds"].([]M)[0]["streamSettings"].(M)["realitySettings"].(M)
+	if got := reality["dest"]; got != "127.0.0.1:8443" {
+		t.Fatalf("runtime Reality dest = %v, want local override", got)
+	}
+	if got := reality["xver"]; got != 1 {
+		t.Fatalf("runtime Reality xver = %v, want 1", got)
+	}
+	sn, ok := reality["serverNames"].([]string)
+	if !ok || len(sn) != 1 || sn[0] != "decoy.example.com" {
+		t.Fatalf("Reality serverNames = %#v, want [decoy.example.com]", reality["serverNames"])
+	}
+}
+
+func TestBuildConfig_RealityNoOverride(t *testing.T) {
+	kcfg := config.KernelConfig{Type: "xray", LogLevel: "warn"}
+	nc := &panel.NodeConfig{
+		Protocol: "vless", ServerPort: 443, TLS: 2,
+		TLSSettings: map[string]interface{}{"private_key": "k", "short_id": "ab", "server_name": "decoy.example.com"},
+	}
+	reality := buildConfig(kcfg, testNodeSpec(nc), testUsers, kernel.TLSCert{})["inbounds"].([]M)[0]["streamSettings"].(M)["realitySettings"].(M)
+	if got := reality["dest"]; got != "decoy.example.com:443" {
+		t.Fatalf("dest = %v, want panel default", got)
+	}
+	if _, has := reality["xver"]; has {
+		t.Fatalf("xver must not be set without override")
+	}
+}

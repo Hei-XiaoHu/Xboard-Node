@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -75,6 +76,7 @@ func buildConfig(kcfg config.KernelConfig, nc *model.NodeSpec, users []model.Use
 
 	inbound := buildInbound(nc, users, tc)
 	if inbound != nil {
+		applyRealityRuntimeOverride(inbound, nc, kcfg)
 		cfg["inbounds"] = []M{inbound}
 	} else {
 		nlog.Core().Warn("xray: unsupported protocol, no inbound configured — node will not accept connections",
@@ -111,6 +113,66 @@ func mergeRouteList(a, b []map[string]any) []map[string]any {
 	res = append(res, a...)
 	res = append(res, b...)
 	return res
+}
+
+// applyRealityRuntimeOverride keeps the panel destination untouched for
+// subscription generation while allowing an Xray node to send Reality fallback
+// traffic to a local PROXY-protocol-aware listener (ported from Duan-rax/Xboard-Node).
+func applyRealityRuntimeOverride(inbound M, nc *model.NodeSpec, kcfg config.KernelConfig) {
+	if kcfg.XrayRealityDestOverride == "" && kcfg.XrayRealityXver == 0 {
+		return
+	}
+	stream, ok := inbound["streamSettings"].(M)
+	if !ok {
+		return
+	}
+	if security, _ := stream["security"].(string); security != "reality" {
+		return
+	}
+	reality, ok := stream["realitySettings"].(M)
+	if !ok {
+		return
+	}
+	// Panels that expose only dest: derive serverNames from the public dest
+	// before the runtime dest is replaced.
+	if _, has := reality["serverNames"]; !has {
+		if sn := realityPublicServerName(nc, reality["dest"]); sn != "" {
+			reality["serverNames"] = []string{sn}
+		}
+	}
+	if kcfg.XrayRealityDestOverride != "" {
+		reality["dest"] = kcfg.XrayRealityDestOverride
+	}
+	if kcfg.XrayRealityXver != 0 {
+		reality["xver"] = kcfg.XrayRealityXver
+	}
+}
+
+func realityPublicServerName(nc *model.NodeSpec, generatedDest any) string {
+	if nc.TLSSettings != nil {
+		if v, ok := nc.TLSSettings["server_name"]; ok {
+			if s := strings.TrimSpace(fmt.Sprintf("%v", v)); s != "" && s != "<nil>" {
+				return s
+			}
+		}
+		if v, ok := nc.TLSSettings["dest"]; ok {
+			if s := realityHost(fmt.Sprintf("%v", v)); s != "" {
+				return s
+			}
+		}
+	}
+	return realityHost(fmt.Sprintf("%v", generatedDest))
+}
+
+func realityHost(destination string) string {
+	destination = strings.TrimSpace(destination)
+	if destination == "" || destination == "<nil>" {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(destination); err == nil {
+		return strings.Trim(host, "[]")
+	}
+	return strings.Trim(destination, "[]")
 }
 
 // mergeCustomXray deep-merges a custom Xray config file into the generated config.
