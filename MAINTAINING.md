@@ -137,6 +137,10 @@ git tag -a v1.13-hx.2 -m "说明" && git push origin v1.13-hx.2
 
 ## 注意事项
 
+- **MPTCP 默认关闭：** go.mod 里的 `godebug multipathtcp=0` 不要删（CVE-2026-98432，Go ≥ 1.24 默认给监听开 MPTCP）。
+  它对 sing-box、Xray 和节点自身的监听都生效；入站显式开启 MPTCP 仍然有效。
+  合并上游 go.mod 冲突时保留这一行，发版后可用 `go version -m <二进制> | grep GODEBUG` 确认。
+
 - **防 SSRF（防止用户借节点访问节点所在机器/内网）：** 拦截列表在
   `internal/kernel/ssrf.go`，两个内核共用。路由规则只能匹配 IP，真正兜底的是直连出站
   （sing-box 的 `block_destinations`、Xray freedom 的 `finalRules`），它们在 DNS 解析之后、

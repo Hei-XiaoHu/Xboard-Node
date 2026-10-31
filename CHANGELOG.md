@@ -1,5 +1,16 @@
 # Changelog (Hei-XiaoHu fork)
 
+## v1.13-hx.4
+
+Security: MPTCP is now off on all listeners (both kernels and the health endpoint).
+Go ≥ 1.24 opens MPTCP listeners by default, which is the demonstrated remote-root path of
+Linux kernel CVE-2026-98432. The binary is built with `godebug multipathtcp=0`; an inbound that
+explicitly asks for MPTCP (Xray `sockopt.tcpMptcp`, sing-box `tcp_multi_path`) still gets it.
+This only removes the MPTCP attack path — **upgrade the server kernel** as well.
+
+- Xray-core v26.10.31 (includes "DefaultListener: Disable MPTCP by default", DNS outbound buffer
+  bound fix, QUIC sniffer hardening).
+
 ## v1.13-hx.3
 
 All new options are off by default; without them the node behaves exactly like v1.13-hx.2.

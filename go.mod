@@ -172,7 +172,7 @@ require (
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/stun/v3 v3.1.7 // indirect
 	github.com/pion/transport/v4 v4.1.0 // indirect
-	github.com/pires/go-proxyproto v0.15.0 // indirect
+	github.com/pires/go-proxyproto v0.16.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/sftp v1.13.10 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
@@ -295,10 +295,12 @@ require (
 
 replace github.com/sagernet/sing-box => github.com/Hei-XiaoHu/sing-box v0.0.0-20261027144437-8cb936a71192
 
-replace github.com/xtls/xray-core => github.com/Hei-XiaoHu/Xray-core v0.0.0-20261026153540-b31d0714f16e
+replace github.com/xtls/xray-core => github.com/Hei-XiaoHu/Xray-core v0.0.0-20261031170451-637d07ec61ab
 
 replace github.com/sagernet/sing-quic => github.com/Hei-XiaoHu/sing-quic v0.0.0-20261026165341-fcd51522a50f
 
 // Accepts REALITY Client Hellos without X25519MLKEM768 (stock mihomo/sing-box).
 // Drop once mainstream clients send X25519MLKEM768 by default.
 replace github.com/xtls/reality => github.com/Hei-XiaoHu/REALITY v0.0.0-20261026201801-58d8ef55a806
+
+godebug multipathtcp=0
