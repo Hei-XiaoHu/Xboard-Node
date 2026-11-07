@@ -55,7 +55,7 @@ require (
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
 	github.com/anchore/go-lzo v0.1.0 // indirect
-	github.com/andybalholm/brotli v1.2.3 // indirect
+	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/anthropics/anthropic-sdk-go v1.26.0 // indirect
 	github.com/anytls/sing-anytls v0.0.11 // indirect
@@ -143,7 +143,7 @@ require (
 	github.com/jsimonetti/rtnetlink v1.4.1 // indirect
 	github.com/juju/ratelimit v1.0.2 // indirect
 	github.com/keybase/go-keychain v0.0.1 // indirect
-	github.com/klauspost/compress v1.20.0 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.1 // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
 	github.com/kr/fs v0.1.0 // indirect
@@ -295,7 +295,7 @@ require (
 
 replace github.com/sagernet/sing-box => github.com/Hei-XiaoHu/sing-box v0.0.0-20261027144437-8cb936a71192
 
-replace github.com/xtls/xray-core => github.com/Hei-XiaoHu/Xray-core v0.0.0-20261031170451-637d07ec61ab
+replace github.com/xtls/xray-core => github.com/Hei-XiaoHu/Xray-core v0.0.0-20261107110311-237228e9b9df
 
 replace github.com/sagernet/sing-quic => github.com/Hei-XiaoHu/sing-quic v0.0.0-20261026165341-fcd51522a50f
 

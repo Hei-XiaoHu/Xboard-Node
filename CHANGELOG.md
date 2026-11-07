@@ -1,5 +1,17 @@
 # Changelog (Hei-XiaoHu fork)
 
+## v1.13-hx.5
+
+- Xray-core v26.10.31 plus two upstream fixes that are not released yet:
+  - XTLS Vision with Mux/XUDP: concurrent mux sessions no longer corrupt the downlink. On
+    VLESS + `xtls-rprx-vision` nodes, a client that opened several UDP sessions at once lost
+    all of them on that connection ([XTLS/Xray-core#7336](https://github.com/XTLS/Xray-core/issues/7336)).
+  - VLESS/Hysteria inbounds relayed through a VMess/Trojan/Shadowsocks custom outbound no longer
+    end the request when the client sends nothing for 100 ms, which broke SSH, SMTP, MySQL and
+    other protocols where the server speaks first ([XTLS/Xray-core#7318](https://github.com/XTLS/Xray-core/issues/7318)).
+- Security: `github.com/andybalholm/brotli` v1.2.7 (GO-2026-6888, memory exhaustion on crafted
+  streams) and `github.com/klauspost/compress` v1.20.2 (GO-2026-6865, panic on crafted frames).
+
 ## v1.13-hx.4
 
 Security: MPTCP is now off on all listeners (both kernels and the health endpoint).
