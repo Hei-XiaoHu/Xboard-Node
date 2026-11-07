@@ -22,6 +22,8 @@ GOTOOLCHAIN=auto make build-linux build-linux-arm64
 .pi/skills/upstream-sync/scripts/status.sh --no-fetch   # 最后一节应全部 ✓
 ```
 
+升级了依赖时再跑一次 govulncheck（`MAINTAINING.md`“检查依赖漏洞”）：这次决定修的漏洞不应再出现在 Symbol Results 里。
+
 sing-quic 的 replace 在 sing-box 和 Xboard-Node 两边都要更新。测试失败就修，修不好就停下汇报，不推送。
 
 ## 3. 提交、推送、发版

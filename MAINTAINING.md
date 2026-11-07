@@ -120,6 +120,21 @@ git push origin main
 还会用真实客户端在换用户期间持续连接，并验证删掉的用户连不上、新加的用户能连上。
 内核升级后务必跑一次。
 
+## 检查依赖漏洞
+
+```bash
+cd ~/桌面/proxy/Xboard-Node
+GOTOOLCHAIN=$(GOTOOLCHAIN=auto go env GOVERSION) go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+```
+
+- 前面的 `GOTOOLCHAIN=…` 不能省：`go run …@latest` 和 `~/go/bin/govulncheck` 默认用本机旧 Go 编译，
+  只会报 `package requires newer Go version`，实际什么都没扫。有漏洞时退出码非 0。
+- 只看 “Symbol Results”（代码确实调用到的）。第三方模块在本仓库
+  `go get <模块>@<Fixed in 版本> && go mod tidy` 就能修（主模块的版本说了算），不用等内核上游。
+- 标准库的结果对应本机工具链（`go 1.27` 在本机选的是 go1.27.0），而 CI 的 setup-go 装的是最新补丁版。
+  “Fixed in” 不高于发布二进制的 Go 版本（`go version -m <二进制> | head -1`）就不影响发布；
+  高于的话说明修复版在上次发版之后才出，重新发版即可。
+
 ## 发布
 
 服务器上的 `install.sh` 和 `xbctl upgrade` 都从本仓库 Release 里标为 **Latest** 的版本下载。

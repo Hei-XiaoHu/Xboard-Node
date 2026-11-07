@@ -37,6 +37,8 @@ git -C <repo> merge-tree --write-tree --name-only main <要合入的 ref>   # �
   （例如 REALITY 又加回 X25519MLKEM768 强制检查、sing-box 改了 `adapter/inbound` 接口、Xray 改了 dispatcher）。
 - 上游是否修掉了我们也补过的问题——是的话可以删补丁，回到上游实现。
 - 安全修复优先级最高，在报告里单独标出。
+- 依赖漏洞：按 `MAINTAINING.md`“检查依赖漏洞”跑 govulncheck。Symbol Results 里的第三方模块漏洞作为安全项报告，
+  建议在 Xboard-Node 的 go.mod 升到 “Fixed in” 版本；标准库漏洞只在 “Fixed in” 高于最新发布二进制的 Go 版本时报告。
 
 ## GitHub 上的 “commits behind”
 
